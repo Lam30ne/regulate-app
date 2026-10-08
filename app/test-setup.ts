@@ -1,3 +1,5 @@
+import "@testing-library/jest-dom/vitest";
+
 class MockOscillatorNode {
   frequency = { value: 0, setValueAtTime: () => {}, exponentialRampToValueAtTime: () => {}, linearRampToValueAtTime: () => {} };
   type: OscillatorType = "sine";

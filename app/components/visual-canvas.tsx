@@ -4,6 +4,7 @@ import type { SoundscapeId, Pathway, AudioReactivity } from "../lib/settings";
 import type { MotionPreference, ExperienceMode } from "../lib/settings";
 import type { CycleShape } from "../lib/regulation-clock";
 import { getBreathPhase, getShapedBreathPhase } from "../lib/regulation-clock";
+import { isMobile } from "../lib/device";
 import { getTimeOfDayShift } from "./time-palette";
 
 interface Particle {
@@ -40,11 +41,6 @@ const SOUNDSCAPE_PALETTES: Record<
 const DAMPING_BASE = 0.92;
 const FORCE_STRENGTH = 4.2;
 const MAX_DELTA = 0.1;
-
-function isMobile(): boolean {
-  if (typeof window === "undefined") return false;
-  return window.innerWidth < 768 || navigator.hardwareConcurrency <= 4;
-}
 
 function createParticle(
   width: number,

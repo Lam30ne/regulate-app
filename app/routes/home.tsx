@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import type { Route } from "./+types/home";
 import { AudioEngine } from "../components/audio-engine";
+import { AudioErrorBanner } from "../components/audio-error-banner";
 import { VisualCanvas } from "../components/visual-canvas";
 import { Controls } from "../components/controls";
 import { SettingsPanel } from "../components/settings-panel";
@@ -8,11 +9,13 @@ import { Onboarding, hasSeenOnboarding } from "../components/onboarding";
 import { DiagnosticsOverlay } from "../components/diagnostics-overlay";
 import { RhythmAnnouncer } from "../components/rhythm-announcer";
 import { ExternalFocusPrompts } from "../components/external-focus-prompts";
+import { playWindDownChime } from "../components/wind-down-chime";
 import { useSession } from "../hooks/use-session";
 import { useSettings } from "../lib/settings";
 import type { SoundscapeId, Pathway } from "../lib/settings";
 import { getBreathHz, getShapedBreathPhase } from "../lib/regulation-clock";
 import { BRAND, APP_SUBTITLE } from "../lib/constants";
+import { isMobile } from "../lib/device";
 import type { SessionState, SessionDuration } from "../lib/session-controller";
 
 export function meta({}: Route.MetaArgs) {
@@ -26,11 +29,6 @@ export function meta({}: Route.MetaArgs) {
     { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
     { name: "theme-color", content: "#0f0a05" },
   ];
-}
-
-function isMobile(): boolean {
-  if (typeof window === "undefined") return false;
-  return window.innerWidth < 768 || navigator.hardwareConcurrency <= 4;
 }
 
 export default function Home() {
@@ -61,6 +59,11 @@ export default function Home() {
             binauralEnabled: settings.binauralEnabled,
             pathway: settings.pathway,
           });
+        }
+      } else if (state === "winding-down") {
+        const ctx = engine.getContext();
+        if (ctx && settings.experienceMode !== "visuals-only") {
+          playWindDownChime(ctx);
         }
       } else if (state === "stopping") {
         engine.stop();
@@ -263,6 +266,15 @@ export default function Home() {
       onFocusCapture={revealUI}
       style={{ cursor: showUI ? "default" : "none" }}
     >
+      <a
+        href="#main-controls"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-1/2 focus:-translate-x-1/2 focus:z-[100] focus:px-4 focus:py-2 focus:rounded-full focus:bg-amber-200/20 focus:text-amber-100/90 focus:text-sm focus:tracking-wider focus:outline-none focus:ring-2 focus:ring-amber-200/60"
+      >
+        Skip to controls
+      </a>
+
+      <AudioErrorBanner audioEngine={audioRef.current} />
+
       {showVisuals && (
         <VisualCanvas
           audioEngine={audioRef.current}
@@ -322,6 +334,7 @@ export default function Home() {
 
       {/* Controls */}
       <div
+        id="main-controls"
         className={`transition-opacity duration-1000 ${showUI ? "opacity-100" : "opacity-0 pointer-events-none"}`}
         onPointerEnter={() => { controlsHovered.current = true; }}
         onPointerLeave={() => { controlsHovered.current = false; }}

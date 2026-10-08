@@ -90,11 +90,23 @@ export class AudioEngine {
   private wetGain: GainNode | null = null;
   private convolver: ConvolverNode | null = null;
 
+  private audioError: Error | null = null;
+
   private ensureContext(): AudioContext {
     if (!this.ctx || this.ctx.state === "closed") {
-      this.ctx = new AudioContext();
+      try {
+        this.ctx = new AudioContext();
+        this.audioError = null;
+      } catch (e) {
+        this.audioError = e instanceof Error ? e : new Error("AudioContext unavailable");
+        throw this.audioError;
+      }
     }
     return this.ctx;
+  }
+
+  getAudioError(): Error | null {
+    return this.audioError;
   }
 
   private buildMasterChain(): void {
@@ -408,9 +420,19 @@ export class AudioEngine {
     if (options?.binauralEnabled !== undefined) this.binauralEnabled = options.binauralEnabled;
     if (options?.pathway) this.pathway = options.pathway;
 
-    const ctx = this.ensureContext();
+    let ctx: AudioContext;
+    try {
+      ctx = this.ensureContext();
+    } catch {
+      return;
+    }
+
     if (ctx.state === "suspended") {
-      await ctx.resume();
+      try {
+        await ctx.resume();
+      } catch {
+        return;
+      }
     }
 
     this.buildMasterChain();
@@ -607,6 +629,10 @@ export class AudioEngine {
     try { this.ctx?.close(); } catch {}
     this.ctx = null;
     this.isPlaying = false;
+  }
+
+  getContext(): AudioContext | null {
+    return this.ctx;
   }
 
   getIsPlaying(): boolean {
