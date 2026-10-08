@@ -11,6 +11,7 @@ interface SettingsPanelProps {
   isOpen: boolean;
   onClose: () => void;
   onOpenHistory?: () => void;
+  onOpenStats?: () => void;
   onShare?: () => void;
 }
 
@@ -52,7 +53,7 @@ const pillClass = (active: boolean) =>
       : "text-amber-100/40 border border-transparent hover:text-amber-100/60 hover:bg-white/5"
   }`;
 
-export function SettingsPanel({ settings, onUpdate, isOpen, onClose, onOpenHistory, onShare }: SettingsPanelProps) {
+export function SettingsPanel({ settings, onUpdate, isOpen, onClose, onOpenHistory, onOpenStats, onShare }: SettingsPanelProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const [showSafety, setShowSafety] = useState(false);
 
@@ -314,14 +315,22 @@ export function SettingsPanel({ settings, onUpdate, isOpen, onClose, onOpenHisto
           </>
         )}
 
-        {/* Session history & share */}
-        <div className="flex gap-2">
+        {/* Session history, stats & share */}
+        <div className="flex flex-wrap gap-2">
           {onOpenHistory && (
             <button
               onClick={onOpenHistory}
               className="flex-1 min-h-[44px] px-3 py-2 rounded-full text-amber-100/40 text-xs tracking-wider border border-transparent hover:text-amber-100/60 hover:bg-white/5 transition-all duration-300 focus-visible:ring-2 focus-visible:ring-amber-200/60 focus-visible:outline-none"
             >
               Session history
+            </button>
+          )}
+          {onOpenStats && (
+            <button
+              onClick={onOpenStats}
+              className="flex-1 min-h-[44px] px-3 py-2 rounded-full text-amber-100/40 text-xs tracking-wider border border-transparent hover:text-amber-100/60 hover:bg-white/5 transition-all duration-300 focus-visible:ring-2 focus-visible:ring-amber-200/60 focus-visible:outline-none"
+            >
+              Usage stats
             </button>
           )}
           {onShare && (

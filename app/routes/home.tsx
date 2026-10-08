@@ -13,10 +13,13 @@ import { playWindDownChime } from "../components/wind-down-chime";
 import { useKeyboardShortcuts, KeyboardHelpOverlay } from "../components/keyboard-shortcuts";
 import { OfflineIndicator } from "../components/offline-indicator";
 import { SessionHistory } from "../components/session-history";
+import { StatsPanel } from "../components/stats-panel";
+import { MoodCheckIn } from "../components/mood-check-in";
 import { useSession } from "../hooks/use-session";
 import { useSettings, buildShareUrl } from "../lib/settings";
 import type { SoundscapeId, Pathway } from "../lib/settings";
 import { addSessionRecord } from "../lib/session-history";
+import type { MoodRating, SessionRecord } from "../lib/session-history";
 import { getBreathHz, getShapedBreathPhase } from "../lib/regulation-clock";
 import { BRAND, APP_SUBTITLE } from "../lib/constants";
 import { isMobile } from "../lib/device";
@@ -49,7 +52,12 @@ export default function Home() {
   const [breathPhase, setBreathPhase] = useState(0.5);
   const [audioLevel, setAudioLevel] = useState(0);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [statsOpen, setStatsOpen] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [moodPhase, setMoodPhase] = useState<"before" | "after" | null>(null);
+  const [moodBefore, setMoodBefore] = useState<MoodRating | undefined>(undefined);
+  const pendingStartRef = useRef<(() => void) | null>(null);
+  const pendingRecordRef = useRef<SessionRecord | null>(null);
   const breathRafRef = useRef(0);
   const sessionStartTimeRef = useRef(0);
   const sessionStartWallClockRef = useRef(0);
@@ -79,14 +87,16 @@ export default function Home() {
         engine.stop();
       } else if (state === "completed") {
         hapticTap(settings.hapticEnabled, 100);
-        addSessionRecord({
+        pendingRecordRef.current = {
           startedAt: sessionStartWallClockRef.current,
           duration: _duration,
           soundscape: settings.soundscape,
           pathway: settings.pathway,
           actualDurationMs: performance.now() - sessionStartTimeRef.current,
           completed: true,
-        });
+          moodBefore,
+        };
+        setMoodPhase("after");
         setShowUI(true);
         if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
       } else if (state === "idle") {
@@ -209,23 +219,58 @@ export default function Home() {
     [updateSettings],
   );
 
+  const handleStartWithMood = useCallback((startFn: () => void) => {
+    pendingStartRef.current = startFn;
+    setMoodPhase("before");
+  }, []);
+
+  const handleMoodBeforeSelect = useCallback((mood: MoodRating) => {
+    setMoodBefore(mood);
+    setMoodPhase(null);
+    pendingStartRef.current?.();
+    pendingStartRef.current = null;
+  }, []);
+
+  const handleMoodBeforeSkip = useCallback(() => {
+    setMoodBefore(undefined);
+    setMoodPhase(null);
+    pendingStartRef.current?.();
+    pendingStartRef.current = null;
+  }, []);
+
+  const handleMoodAfterSelect = useCallback((mood: MoodRating) => {
+    if (pendingRecordRef.current) {
+      pendingRecordRef.current.moodAfter = mood;
+      addSessionRecord(pendingRecordRef.current);
+      pendingRecordRef.current = null;
+    }
+    setMoodPhase(null);
+    setMoodBefore(undefined);
+  }, []);
+
+  const handleMoodAfterSkip = useCallback(() => {
+    if (pendingRecordRef.current) {
+      addSessionRecord(pendingRecordRef.current);
+      pendingRecordRef.current = null;
+    }
+    setMoodPhase(null);
+    setMoodBefore(undefined);
+  }, []);
+
   const handleStartReset = useCallback(() => {
     audioRef.current?.setVolume(settings.volume);
-    session.startReset();
-    startHideTimer();
-  }, [session, settings.volume, startHideTimer]);
+    handleStartWithMood(() => { session.startReset(); startHideTimer(); });
+  }, [session, settings.volume, startHideTimer, handleStartWithMood]);
 
   const handleStartTenMinuteReset = useCallback(() => {
     audioRef.current?.setVolume(settings.volume);
-    session.startTenMinuteReset();
-    startHideTimer();
-  }, [session, settings.volume, startHideTimer]);
+    handleStartWithMood(() => { session.startTenMinuteReset(); startHideTimer(); });
+  }, [session, settings.volume, startHideTimer, handleStartWithMood]);
 
   const handleStartOpen = useCallback(() => {
     audioRef.current?.setVolume(settings.volume);
-    session.startOpen();
-    startHideTimer();
-  }, [session, settings.volume, startHideTimer]);
+    handleStartWithMood(() => { session.startOpen(); startHideTimer(); });
+  }, [session, settings.volume, startHideTimer, handleStartWithMood]);
 
   const handleStop = useCallback(() => {
     if (session.state !== "idle" && session.state !== "completed") {
@@ -236,17 +281,19 @@ export default function Home() {
         pathway: settings.pathway,
         actualDurationMs: performance.now() - sessionStartTimeRef.current,
         completed: false,
+        moodBefore,
       });
     }
+    pendingRecordRef.current = null;
     session.stop();
     setShowUI(true);
+    setMoodBefore(undefined);
     if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-  }, [session, settings.soundscape, settings.pathway]);
+  }, [session, settings.soundscape, settings.pathway, moodBefore]);
 
   const handleReplay = useCallback(() => {
-    session.replay();
-    startHideTimer();
-  }, [session, startHideTimer]);
+    handleStartWithMood(() => { session.replay(); startHideTimer(); });
+  }, [session, startHideTimer, handleStartWithMood]);
 
   const handleSettingsUpdate = useCallback(
     (update: Partial<typeof settings>) => {
@@ -278,6 +325,11 @@ export default function Home() {
   const handleOpenHistory = useCallback(() => {
     setSettingsOpen(false);
     setHistoryOpen(true);
+  }, []);
+
+  const handleOpenStats = useCallback(() => {
+    setSettingsOpen(false);
+    setStatsOpen(true);
   }, []);
 
   const handleShare = useCallback(async () => {
@@ -466,11 +518,24 @@ export default function Home() {
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}
         onOpenHistory={handleOpenHistory}
+        onOpenStats={handleOpenStats}
         onShare={handleShare}
       />
 
       {/* Session history */}
       <SessionHistory isOpen={historyOpen} onClose={() => setHistoryOpen(false)} />
+
+      {/* Usage stats */}
+      <StatsPanel isOpen={statsOpen} onClose={() => setStatsOpen(false)} />
+
+      {/* Mood check-in */}
+      {moodPhase && (
+        <MoodCheckIn
+          phase={moodPhase}
+          onSelect={moodPhase === "before" ? handleMoodBeforeSelect : handleMoodAfterSelect}
+          onSkip={moodPhase === "before" ? handleMoodBeforeSkip : handleMoodAfterSkip}
+        />
+      )}
 
       {/* Keyboard help overlay */}
       <KeyboardHelpOverlay open={helpOpen} onClose={() => setHelpOpen(false)} />

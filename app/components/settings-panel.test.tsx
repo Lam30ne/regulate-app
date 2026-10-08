@@ -103,4 +103,38 @@ describe("SettingsPanel", () => {
     await user.click(screen.getByText("Review safety information"));
     expect(screen.getByText(/Consult a qualified clinician/)).toBeInTheDocument();
   });
+
+  it("renders Usage stats button when onOpenStats is provided", () => {
+    render(
+      <SettingsPanel
+        settings={defaultSettings}
+        onUpdate={() => {}}
+        isOpen={true}
+        onClose={() => {}}
+        onOpenStats={() => {}}
+      />,
+    );
+    expect(screen.getByText("Usage stats")).toBeInTheDocument();
+  });
+
+  it("does not render Usage stats button when onOpenStats is not provided", () => {
+    renderPanel();
+    expect(screen.queryByText("Usage stats")).not.toBeInTheDocument();
+  });
+
+  it("calls onOpenStats when Usage stats button is clicked", async () => {
+    const user = userEvent.setup();
+    const onOpenStats = vi.fn();
+    render(
+      <SettingsPanel
+        settings={defaultSettings}
+        onUpdate={() => {}}
+        isOpen={true}
+        onClose={() => {}}
+        onOpenStats={onOpenStats}
+      />,
+    );
+    await user.click(screen.getByText("Usage stats"));
+    expect(onOpenStats).toHaveBeenCalled();
+  });
 });
