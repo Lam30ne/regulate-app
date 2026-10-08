@@ -91,4 +91,30 @@ describe("RhythmAnnouncer", () => {
       "true",
     );
   });
+
+  it("uses descriptive verbosity when configured", () => {
+    const { rerender } = render(
+      <RhythmAnnouncer enabled={true} breathPhase={0.4} verbosity="descriptive" />,
+    );
+    vi.spyOn(Date, "now").mockReturnValue(103_000);
+    rerender(<RhythmAnnouncer enabled={true} breathPhase={0.6} verbosity="descriptive" />);
+    expect(screen.getByText(/Breath rising slowly/)).toBeInTheDocument();
+  });
+
+  it("skips announcements with every-other cadence", () => {
+    const { rerender } = render(
+      <RhythmAnnouncer enabled={true} breathPhase={0.4} cadence="every-other" />,
+    );
+
+    vi.spyOn(Date, "now").mockReturnValue(103_000);
+    rerender(<RhythmAnnouncer enabled={true} breathPhase={0.6} cadence="every-other" />);
+    expect(screen.queryByText("rising")).not.toBeInTheDocument();
+
+    vi.spyOn(Date, "now").mockReturnValue(106_000);
+    rerender(<RhythmAnnouncer enabled={true} breathPhase={0.4} cadence="every-other" />);
+
+    vi.spyOn(Date, "now").mockReturnValue(109_000);
+    rerender(<RhythmAnnouncer enabled={true} breathPhase={0.6} cadence="every-other" />);
+    expect(screen.getByText("rising")).toBeInTheDocument();
+  });
 });

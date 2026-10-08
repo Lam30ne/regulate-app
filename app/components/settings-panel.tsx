@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import type { UserSettings } from "../lib/settings";
 import { RHYTHM_PRESETS, type RhythmPresetId } from "../lib/regulation-clock";
 import { BRAND } from "../lib/constants";
+import { canVibrate } from "../lib/haptics";
+import type { AnnouncerCadence, AnnouncerVerbosity } from "../lib/settings";
 
 interface SettingsPanelProps {
   settings: UserSettings;
@@ -240,6 +242,24 @@ export function SettingsPanel({ settings, onUpdate, isOpen, onClose }: SettingsP
           label="Keep controls visible"
         />
 
+        {/* High contrast */}
+        <ToggleSwitch
+          checked={settings.highContrast}
+          onChange={() => onUpdate({ highContrast: !settings.highContrast })}
+          label="High contrast"
+          description="Increase text and border visibility"
+        />
+
+        {/* Haptic feedback (mobile only) */}
+        {canVibrate() && (
+          <ToggleSwitch
+            checked={settings.hapticEnabled}
+            onChange={() => onUpdate({ hapticEnabled: !settings.hapticEnabled })}
+            label="Haptic feedback"
+            description="Subtle vibration on session start and end"
+          />
+        )}
+
         {/* Announce rhythm changes */}
         <ToggleSwitch
           checked={settings.announceRhythm}
@@ -247,6 +267,50 @@ export function SettingsPanel({ settings, onUpdate, isOpen, onClose }: SettingsP
           label="Announce rhythm changes"
           description="Screen reader announces rising/settling"
         />
+
+        {/* Announcer options (shown when announcer is enabled) */}
+        {settings.announceRhythm && (
+          <>
+            <fieldset>
+              <legend className="text-amber-100/50 text-xs tracking-wider uppercase mb-2">Announcement cadence</legend>
+              <div className="flex gap-2">
+                {([
+                  { id: "every-cycle" as AnnouncerCadence, label: "Every cycle" },
+                  { id: "every-other" as AnnouncerCadence, label: "Every other" },
+                  { id: "every-five" as AnnouncerCadence, label: "Every 5th" },
+                ]).map(({ id, label }) => (
+                  <button
+                    key={id}
+                    onClick={() => onUpdate({ announcerCadence: id })}
+                    aria-pressed={settings.announcerCadence === id}
+                    className={pillClass(settings.announcerCadence === id)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+
+            <fieldset>
+              <legend className="text-amber-100/50 text-xs tracking-wider uppercase mb-2">Announcement detail</legend>
+              <div className="flex gap-2">
+                {([
+                  { id: "minimal" as AnnouncerVerbosity, label: "Minimal" },
+                  { id: "descriptive" as AnnouncerVerbosity, label: "Descriptive" },
+                ]).map(({ id, label }) => (
+                  <button
+                    key={id}
+                    onClick={() => onUpdate({ announcerVerbosity: id })}
+                    aria-pressed={settings.announcerVerbosity === id}
+                    className={pillClass(settings.announcerVerbosity === id)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+          </>
+        )}
 
         {/* Safety info link */}
         <div className="pt-2 border-t border-amber-200/5">

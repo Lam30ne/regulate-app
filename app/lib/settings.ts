@@ -7,6 +7,8 @@ export type MotionPreference = "system" | "full" | "reduced" | "static";
 export type Pathway = "ambient-rhythm" | "external-focus";
 export type AudioReactivity = "on" | "reduced" | "off";
 export type SessionDuration = "five-minute" | "ten-minute" | "open";
+export type AnnouncerCadence = "every-cycle" | "every-other" | "every-five";
+export type AnnouncerVerbosity = "minimal" | "descriptive";
 
 export interface UserSettings {
   rhythmPreset: RhythmPresetId;
@@ -21,6 +23,10 @@ export interface UserSettings {
   audioReactivity: AudioReactivity;
   cycleShape: CycleShape;
   announceRhythm: boolean;
+  announcerCadence: AnnouncerCadence;
+  announcerVerbosity: AnnouncerVerbosity;
+  hapticEnabled: boolean;
+  highContrast: boolean;
 }
 
 const STORAGE_KEY = "regulate-settings";
@@ -38,6 +44,10 @@ export const DEFAULT_SETTINGS: UserSettings = {
   audioReactivity: "on",
   cycleShape: "longer-release",
   announceRhythm: false,
+  announcerCadence: "every-cycle",
+  announcerVerbosity: "minimal",
+  hapticEnabled: false,
+  highContrast: false,
 };
 
 export function loadSettings(): UserSettings {
@@ -59,6 +69,10 @@ export function loadSettings(): UserSettings {
       audioReactivity: isValidAudioReactivity(parsed.audioReactivity) ? parsed.audioReactivity : DEFAULT_SETTINGS.audioReactivity,
       cycleShape: isValidCycleShape(parsed.cycleShape) ? parsed.cycleShape : DEFAULT_SETTINGS.cycleShape,
       announceRhythm: typeof parsed.announceRhythm === "boolean" ? parsed.announceRhythm : DEFAULT_SETTINGS.announceRhythm,
+      announcerCadence: isValidAnnouncerCadence(parsed.announcerCadence) ? parsed.announcerCadence : DEFAULT_SETTINGS.announcerCadence,
+      announcerVerbosity: isValidAnnouncerVerbosity(parsed.announcerVerbosity) ? parsed.announcerVerbosity : DEFAULT_SETTINGS.announcerVerbosity,
+      hapticEnabled: typeof parsed.hapticEnabled === "boolean" ? parsed.hapticEnabled : DEFAULT_SETTINGS.hapticEnabled,
+      highContrast: typeof parsed.highContrast === "boolean" ? parsed.highContrast : DEFAULT_SETTINGS.highContrast,
     };
   } catch {
     return { ...DEFAULT_SETTINGS };
@@ -103,6 +117,14 @@ function isValidAudioReactivity(v: unknown): v is AudioReactivity {
 
 function isValidCycleShape(v: unknown): v is CycleShape {
   return v === "longer-release" || v === "balanced";
+}
+
+function isValidAnnouncerCadence(v: unknown): v is AnnouncerCadence {
+  return v === "every-cycle" || v === "every-other" || v === "every-five";
+}
+
+function isValidAnnouncerVerbosity(v: unknown): v is AnnouncerVerbosity {
+  return v === "minimal" || v === "descriptive";
 }
 
 export function useSettings(): [UserSettings, (update: Partial<UserSettings>) => void] {

@@ -19,8 +19,12 @@ const defaultSettings: UserSettings = {
   experienceMode: "audio-visuals",
   keepControlsVisible: false,
   announceRhythm: false,
+  announcerCadence: "every-cycle",
+  announcerVerbosity: "minimal",
   pathway: "ambient-rhythm",
   audioReactivity: "on",
+  hapticEnabled: false,
+  highContrast: false,
 };
 
 function renderPanel(overrides: Partial<{ settings: UserSettings; isOpen: boolean }> = {}) {

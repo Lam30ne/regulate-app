@@ -18,6 +18,7 @@ import type { SoundscapeId, Pathway } from "../lib/settings";
 import { getBreathHz, getShapedBreathPhase } from "../lib/regulation-clock";
 import { BRAND, APP_SUBTITLE } from "../lib/constants";
 import { isMobile } from "../lib/device";
+import { hapticTap } from "../lib/haptics";
 import type { SessionState, SessionDuration } from "../lib/session-controller";
 
 export function meta({}: Route.MetaArgs) {
@@ -55,6 +56,7 @@ export default function Home() {
 
       if (state === "starting") {
         sessionStartTimeRef.current = performance.now();
+        hapticTap(settings.hapticEnabled, 50);
         if (settings.experienceMode !== "visuals-only") {
           engine.start(settings.soundscape, {
             rhythmPreset: settings.rhythmPreset,
@@ -69,12 +71,16 @@ export default function Home() {
         }
       } else if (state === "stopping") {
         engine.stop();
-      } else if (state === "completed" || state === "idle") {
+      } else if (state === "completed") {
+        hapticTap(settings.hapticEnabled, 100);
+        setShowUI(true);
+        if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+      } else if (state === "idle") {
         setShowUI(true);
         if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
       }
     },
-    [settings.soundscape, settings.rhythmPreset, settings.binauralEnabled, settings.experienceMode, settings.pathway],
+    [settings.soundscape, settings.rhythmPreset, settings.binauralEnabled, settings.experienceMode, settings.pathway, settings.hapticEnabled],
   );
 
   const session = useSession(handleStateChange);
@@ -158,11 +164,12 @@ export default function Home() {
   const handleSoundscapeChange = useCallback(
     (s: SoundscapeId) => {
       updateSettings({ soundscape: s });
+      hapticTap(settings.hapticEnabled, 30);
       if (isActive && audioRef.current && settings.experienceMode !== "visuals-only") {
         audioRef.current.crossfadeTo(s);
       }
     },
-    [isActive, updateSettings, settings.experienceMode],
+    [isActive, updateSettings, settings.experienceMode, settings.hapticEnabled],
   );
 
   const handleVolumeChange = useCallback(
@@ -292,6 +299,16 @@ export default function Home() {
   const showVisuals = settings.experienceMode !== "audio-only";
   const rhythmHz = getBreathHz(settings.rhythmPreset);
 
+  const effectiveHighContrast = settings.highContrast ||
+    (typeof window !== "undefined" && window.matchMedia?.("(prefers-contrast: more)")?.matches);
+
+  useEffect(() => {
+    document.documentElement.setAttribute(
+      "data-high-contrast",
+      effectiveHighContrast ? "true" : "false",
+    );
+  }, [effectiveHighContrast]);
+
   if (showOnboarding) {
     return <Onboarding onDismiss={handleOnboardingDismiss} />;
   }
@@ -346,6 +363,8 @@ export default function Home() {
       <RhythmAnnouncer
         enabled={settings.announceRhythm && isActive}
         breathPhase={breathPhase}
+        cadence={settings.announcerCadence}
+        verbosity={settings.announcerVerbosity}
       />
 
       {/* Header */}
