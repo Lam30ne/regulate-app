@@ -1,3 +1,6 @@
+import * as React from "react";
+(globalThis as any).React = React;
+
 class MockOscillatorNode {
   frequency = { value: 0, setValueAtTime: () => {}, exponentialRampToValueAtTime: () => {}, linearRampToValueAtTime: () => {} };
   type: OscillatorType = "sine";

@@ -321,8 +321,10 @@ export default function Home() {
       </header>
 
       {/* Controls */}
-      <div
-        className={`transition-opacity duration-1000 ${showUI ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className={`outline-none transition-opacity duration-1000 ${showUI ? "opacity-100" : "opacity-0 pointer-events-none"}`}
         onPointerEnter={() => { controlsHovered.current = true; }}
         onPointerLeave={() => { controlsHovered.current = false; }}
       >
@@ -345,7 +347,7 @@ export default function Home() {
           onPathwayChange={handlePathwayChange}
           onOpenSettings={() => { setSettingsOpen(true); }}
         />
-      </div>
+      </main>
 
       {/* Settings Panel */}
       <SettingsPanel
