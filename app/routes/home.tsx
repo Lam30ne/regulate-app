@@ -64,7 +64,7 @@ export default function Home() {
         }
       } else if (state === "stopping") {
         engine.stop();
-      } else if (state === "completed") {
+      } else if (state === "completed" || state === "idle") {
         setShowUI(true);
         if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
       }
