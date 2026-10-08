@@ -23,6 +23,17 @@ export const links: Route.LinksFunction = () => [
 	},
 ];
 
+export function SkipLink() {
+	return (
+		<a
+			href="#main-content"
+			className="sr-only focus-visible:not-sr-only focus-visible:fixed focus-visible:top-4 focus-visible:left-4 focus-visible:z-50 focus-visible:px-4 focus-visible:py-2 focus-visible:rounded-full focus-visible:bg-[#1a120b] focus-visible:text-amber-100/90 focus-visible:text-sm focus-visible:font-light focus-visible:tracking-wide focus-visible:border focus-visible:border-amber-200/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200/50 focus-visible:shadow-lg focus-visible:backdrop-blur-sm transition-all"
+		>
+			Skip to main content
+		</a>
+	);
+}
+
 export function Layout({ children }: { children: React.ReactNode }) {
 	return (
 		<html lang="en">
@@ -36,6 +47,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 				<Links />
 			</head>
 			<body>
+				<SkipLink />
 				{children}
 				<ScrollRestoration />
 				<Scripts />
