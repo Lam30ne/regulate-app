@@ -14,6 +14,7 @@ import type { SoundscapeId, Pathway } from "../lib/settings";
 import { getBreathHz, getShapedBreathPhase } from "../lib/regulation-clock";
 import { BRAND, APP_SUBTITLE } from "../lib/constants";
 import type { SessionState, SessionDuration } from "../lib/session-controller";
+import { isMobile } from "../lib/device";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -26,11 +27,6 @@ export function meta({}: Route.MetaArgs) {
     { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
     { name: "theme-color", content: "#0f0a05" },
   ];
-}
-
-function isMobile(): boolean {
-  if (typeof window === "undefined") return false;
-  return window.innerWidth < 768 || navigator.hardwareConcurrency <= 4;
 }
 
 export default function Home() {
