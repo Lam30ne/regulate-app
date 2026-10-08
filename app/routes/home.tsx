@@ -12,9 +12,11 @@ import { ExternalFocusPrompts } from "../components/external-focus-prompts";
 import { playWindDownChime } from "../components/wind-down-chime";
 import { useKeyboardShortcuts, KeyboardHelpOverlay } from "../components/keyboard-shortcuts";
 import { OfflineIndicator } from "../components/offline-indicator";
+import { SessionHistory } from "../components/session-history";
 import { useSession } from "../hooks/use-session";
-import { useSettings } from "../lib/settings";
+import { useSettings, buildShareUrl } from "../lib/settings";
 import type { SoundscapeId, Pathway } from "../lib/settings";
+import { addSessionRecord } from "../lib/session-history";
 import { getBreathHz, getShapedBreathPhase } from "../lib/regulation-clock";
 import { BRAND, APP_SUBTITLE } from "../lib/constants";
 import { isMobile } from "../lib/device";
@@ -46,8 +48,11 @@ export default function Home() {
   const [showOnboarding, setShowOnboarding] = useState(() => !hasSeenOnboarding());
   const [breathPhase, setBreathPhase] = useState(0.5);
   const [audioLevel, setAudioLevel] = useState(0);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
   const breathRafRef = useRef(0);
   const sessionStartTimeRef = useRef(0);
+  const sessionStartWallClockRef = useRef(0);
 
   const handleStateChange = useCallback(
     (state: SessionState, _duration: SessionDuration) => {
@@ -56,6 +61,7 @@ export default function Home() {
 
       if (state === "starting") {
         sessionStartTimeRef.current = performance.now();
+        sessionStartWallClockRef.current = Date.now();
         hapticTap(settings.hapticEnabled, 50);
         if (settings.experienceMode !== "visuals-only") {
           engine.start(settings.soundscape, {
@@ -73,6 +79,14 @@ export default function Home() {
         engine.stop();
       } else if (state === "completed") {
         hapticTap(settings.hapticEnabled, 100);
+        addSessionRecord({
+          startedAt: sessionStartWallClockRef.current,
+          duration: _duration,
+          soundscape: settings.soundscape,
+          pathway: settings.pathway,
+          actualDurationMs: performance.now() - sessionStartTimeRef.current,
+          completed: true,
+        });
         setShowUI(true);
         if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
       } else if (state === "idle") {
@@ -214,10 +228,20 @@ export default function Home() {
   }, [session, settings.volume, startHideTimer]);
 
   const handleStop = useCallback(() => {
+    if (session.state !== "idle" && session.state !== "completed") {
+      addSessionRecord({
+        startedAt: sessionStartWallClockRef.current,
+        duration: session.sessionType,
+        soundscape: settings.soundscape,
+        pathway: settings.pathway,
+        actualDurationMs: performance.now() - sessionStartTimeRef.current,
+        completed: false,
+      });
+    }
     session.stop();
     setShowUI(true);
     if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-  }, [session]);
+  }, [session, settings.soundscape, settings.pathway]);
 
   const handleReplay = useCallback(() => {
     session.replay();
@@ -250,6 +274,22 @@ export default function Home() {
     },
     [updateSettings],
   );
+
+  const handleOpenHistory = useCallback(() => {
+    setSettingsOpen(false);
+    setHistoryOpen(true);
+  }, []);
+
+  const handleShare = useCallback(async () => {
+    const url = buildShareUrl(settings);
+    try {
+      await navigator.clipboard.writeText(url);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    } catch {
+      // clipboard may be unavailable
+    }
+  }, [settings]);
 
   const toggleFullscreen = useCallback(() => {
     if (!document.fullscreenElement) {
@@ -425,10 +465,25 @@ export default function Home() {
         onUpdate={handleSettingsUpdate}
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}
+        onOpenHistory={handleOpenHistory}
+        onShare={handleShare}
       />
+
+      {/* Session history */}
+      <SessionHistory isOpen={historyOpen} onClose={() => setHistoryOpen(false)} />
 
       {/* Keyboard help overlay */}
       <KeyboardHelpOverlay open={helpOpen} onClose={() => setHelpOpen(false)} />
+
+      {/* Link copied toast */}
+      {linkCopied && (
+        <div
+          role="status"
+          className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full bg-amber-900/80 border border-amber-200/20 text-amber-100/80 text-xs tracking-wider backdrop-blur-sm animate-fadeIn"
+        >
+          Link copied
+        </div>
+      )}
 
       {/* Diagnostics (dev only) */}
       <DiagnosticsOverlay

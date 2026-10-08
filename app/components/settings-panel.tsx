@@ -10,6 +10,8 @@ interface SettingsPanelProps {
   onUpdate: (update: Partial<UserSettings>) => void;
   isOpen: boolean;
   onClose: () => void;
+  onOpenHistory?: () => void;
+  onShare?: () => void;
 }
 
 function ToggleSwitch({ checked, onChange, label, description }: {
@@ -50,7 +52,7 @@ const pillClass = (active: boolean) =>
       : "text-amber-100/40 border border-transparent hover:text-amber-100/60 hover:bg-white/5"
   }`;
 
-export function SettingsPanel({ settings, onUpdate, isOpen, onClose }: SettingsPanelProps) {
+export function SettingsPanel({ settings, onUpdate, isOpen, onClose, onOpenHistory, onShare }: SettingsPanelProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const [showSafety, setShowSafety] = useState(false);
 
@@ -311,6 +313,26 @@ export function SettingsPanel({ settings, onUpdate, isOpen, onClose }: SettingsP
             </fieldset>
           </>
         )}
+
+        {/* Session history & share */}
+        <div className="flex gap-2">
+          {onOpenHistory && (
+            <button
+              onClick={onOpenHistory}
+              className="flex-1 min-h-[44px] px-3 py-2 rounded-full text-amber-100/40 text-xs tracking-wider border border-transparent hover:text-amber-100/60 hover:bg-white/5 transition-all duration-300 focus-visible:ring-2 focus-visible:ring-amber-200/60 focus-visible:outline-none"
+            >
+              Session history
+            </button>
+          )}
+          {onShare && (
+            <button
+              onClick={onShare}
+              className="flex-1 min-h-[44px] px-3 py-2 rounded-full text-amber-100/40 text-xs tracking-wider border border-transparent hover:text-amber-100/60 hover:bg-white/5 transition-all duration-300 focus-visible:ring-2 focus-visible:ring-amber-200/60 focus-visible:outline-none"
+            >
+              Share settings
+            </button>
+          )}
+        </div>
 
         {/* Safety info link */}
         <div className="pt-2 border-t border-amber-200/5">

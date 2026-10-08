@@ -1,0 +1,14 @@
+[
+  {
+    "name": "Total JS",
+    "path": "build/client/assets/*.js",
+    "gzip": true,
+    "limit": "150 KB"
+  },
+  {
+    "name": "App chunk (home)",
+    "path": "build/client/assets/home-*.js",
+    "gzip": true,
+    "limit": "25 KB"
+  }
+]
