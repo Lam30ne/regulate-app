@@ -1,5 +1,6 @@
-export function playWindDownChime(audioContext: AudioContext): void {
+export function playWindDownChime(audioContext: AudioContext, destination?: AudioNode): void {
   const now = audioContext.currentTime;
+  const dest = destination ?? audioContext.destination;
 
   const freqs = [660, 880, 1100];
   for (let i = 0; i < freqs.length; i++) {
@@ -14,7 +15,7 @@ export function playWindDownChime(audioContext: AudioContext): void {
     gain.gain.exponentialRampToValueAtTime(0.001, onset + 1.5);
 
     osc.connect(gain);
-    gain.connect(audioContext.destination);
+    gain.connect(dest);
     osc.start(onset);
     osc.stop(onset + 1.6);
   }

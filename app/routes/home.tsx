@@ -63,7 +63,7 @@ export default function Home() {
       } else if (state === "winding-down") {
         const ctx = engine.getContext();
         if (ctx && settings.experienceMode !== "visuals-only") {
-          playWindDownChime(ctx);
+          playWindDownChime(ctx, engine.getOutputNode() ?? undefined);
         }
       } else if (state === "stopping") {
         engine.stop();

@@ -25,6 +25,7 @@ function ToggleSwitch({ checked, onChange, label, description }: {
       <button
         role="switch"
         aria-checked={checked}
+        aria-label={label}
         onClick={onChange}
         className={`relative w-10 h-6 rounded-full transition-colors duration-300 focus-visible:ring-2 focus-visible:ring-amber-200/60 focus-visible:outline-none ${
           checked ? "bg-amber-200/25" : "bg-white/10"

@@ -635,6 +635,10 @@ export class AudioEngine {
     return this.ctx;
   }
 
+  getOutputNode(): AudioNode | null {
+    return this.masterGain;
+  }
+
   getIsPlaying(): boolean {
     return this.isPlaying;
   }

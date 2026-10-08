@@ -21,7 +21,6 @@ export const TEN_MINUTE_WIND_DOWN_AT_MS = 540_000;
 export const TEN_MINUTE_FADE_OUT_AT_MS = 595_000;
 
 export const MASTER_SWELL_DEPTH = 0.20;
-export const DEV_SWELL_OPTIONS = [0.10, 0.15, 0.20] as const;
 
 export const ONBOARDING_VERSION = 1;
 export const ONBOARDING_STORAGE_KEY = "regulate-onboarding-v";
