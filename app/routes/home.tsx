@@ -10,6 +10,8 @@ import { DiagnosticsOverlay } from "../components/diagnostics-overlay";
 import { RhythmAnnouncer } from "../components/rhythm-announcer";
 import { ExternalFocusPrompts } from "../components/external-focus-prompts";
 import { playWindDownChime } from "../components/wind-down-chime";
+import { useKeyboardShortcuts, KeyboardHelpOverlay } from "../components/keyboard-shortcuts";
+import { OfflineIndicator } from "../components/offline-indicator";
 import { useSession } from "../hooks/use-session";
 import { useSettings } from "../lib/settings";
 import type { SoundscapeId, Pathway } from "../lib/settings";
@@ -250,6 +252,43 @@ export default function Home() {
     }
   }, []);
 
+  const volumeBeforeMuteRef = useRef(settings.volume);
+
+  const toggleMute = useCallback(() => {
+    if (settings.volume > 0) {
+      volumeBeforeMuteRef.current = settings.volume;
+      updateSettings({ volume: 0 });
+      audioRef.current?.setVolume(0);
+    } else {
+      const restored = volumeBeforeMuteRef.current || 0.7;
+      updateSettings({ volume: restored });
+      audioRef.current?.setVolume(restored);
+    }
+  }, [settings.volume, updateSettings]);
+
+  const toggleSession = useCallback(() => {
+    if (isActive) {
+      handleStop();
+    } else if (session.state === "completed") {
+      handleReplay();
+    } else {
+      handleStartReset();
+    }
+  }, [isActive, session.state, handleStop, handleReplay, handleStartReset]);
+
+  const toggleSettings = useCallback(() => {
+    setSettingsOpen((prev) => !prev);
+  }, []);
+
+  const { helpOpen, setHelpOpen } = useKeyboardShortcuts({
+    onToggleSession: toggleSession,
+    onToggleMute: toggleMute,
+    onToggleSettings: toggleSettings,
+    onToggleFullscreen: toggleFullscreen,
+    isActive,
+    settingsOpen,
+  });
+
   const showVisuals = settings.experienceMode !== "audio-only";
   const rhythmHz = getBreathHz(settings.rhythmPreset);
 
@@ -273,6 +312,7 @@ export default function Home() {
         Skip to controls
       </a>
 
+      <OfflineIndicator />
       <AudioErrorBanner audioEngine={audioRef.current} />
 
       {showVisuals && (
@@ -367,6 +407,9 @@ export default function Home() {
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}
       />
+
+      {/* Keyboard help overlay */}
+      <KeyboardHelpOverlay open={helpOpen} onClose={() => setHelpOpen(false)} />
 
       {/* Diagnostics (dev only) */}
       <DiagnosticsOverlay
