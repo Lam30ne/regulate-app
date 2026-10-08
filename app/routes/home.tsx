@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import type { Route } from "./+types/home";
 import { AudioEngine } from "../components/audio-engine";
+import { AudioErrorBanner } from "../components/audio-error-banner";
 import { VisualCanvas } from "../components/visual-canvas";
 import { Controls } from "../components/controls";
 import { SettingsPanel } from "../components/settings-panel";
@@ -8,11 +9,21 @@ import { Onboarding, hasSeenOnboarding } from "../components/onboarding";
 import { DiagnosticsOverlay } from "../components/diagnostics-overlay";
 import { RhythmAnnouncer } from "../components/rhythm-announcer";
 import { ExternalFocusPrompts } from "../components/external-focus-prompts";
+import { playWindDownChime } from "../components/wind-down-chime";
+import { useKeyboardShortcuts, KeyboardHelpOverlay } from "../components/keyboard-shortcuts";
+import { OfflineIndicator } from "../components/offline-indicator";
+import { SessionHistory } from "../components/session-history";
+import { StatsPanel } from "../components/stats-panel";
+import { MoodCheckIn } from "../components/mood-check-in";
 import { useSession } from "../hooks/use-session";
-import { useSettings } from "../lib/settings";
+import { useSettings, buildShareUrl } from "../lib/settings";
 import type { SoundscapeId, Pathway } from "../lib/settings";
+import { addSessionRecord } from "../lib/session-history";
+import type { MoodRating, SessionRecord } from "../lib/session-history";
 import { getBreathHz, getShapedBreathPhase } from "../lib/regulation-clock";
 import { BRAND, APP_SUBTITLE } from "../lib/constants";
+import { isMobile } from "../lib/device";
+import { hapticTap } from "../lib/haptics";
 import type { SessionState, SessionDuration } from "../lib/session-controller";
 
 export function meta({}: Route.MetaArgs) {
@@ -28,11 +39,6 @@ export function meta({}: Route.MetaArgs) {
   ];
 }
 
-function isMobile(): boolean {
-  if (typeof window === "undefined") return false;
-  return window.innerWidth < 768 || navigator.hardwareConcurrency <= 4;
-}
-
 export default function Home() {
   const [settings, updateSettings] = useSettings();
   const audioRef = useRef<AudioEngine | null>(null);
@@ -45,8 +51,16 @@ export default function Home() {
   const [showOnboarding, setShowOnboarding] = useState(() => !hasSeenOnboarding());
   const [breathPhase, setBreathPhase] = useState(0.5);
   const [audioLevel, setAudioLevel] = useState(0);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [statsOpen, setStatsOpen] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
+  const [moodPhase, setMoodPhase] = useState<"before" | "after" | null>(null);
+  const [moodBefore, setMoodBefore] = useState<MoodRating | undefined>(undefined);
+  const pendingStartRef = useRef<(() => void) | null>(null);
+  const pendingRecordRef = useRef<SessionRecord | null>(null);
   const breathRafRef = useRef(0);
   const sessionStartTimeRef = useRef(0);
+  const sessionStartWallClockRef = useRef(0);
 
   const handleStateChange = useCallback(
     (state: SessionState, _duration: SessionDuration) => {
@@ -55,6 +69,8 @@ export default function Home() {
 
       if (state === "starting") {
         sessionStartTimeRef.current = performance.now();
+        sessionStartWallClockRef.current = Date.now();
+        hapticTap(settings.hapticEnabled, 50);
         if (settings.experienceMode !== "visuals-only") {
           engine.start(settings.soundscape, {
             rhythmPreset: settings.rhythmPreset,
@@ -62,14 +78,33 @@ export default function Home() {
             pathway: settings.pathway,
           });
         }
+      } else if (state === "winding-down") {
+        const ctx = engine.getContext();
+        if (ctx && settings.experienceMode !== "visuals-only") {
+          playWindDownChime(ctx, engine.getOutputNode() ?? undefined);
+        }
       } else if (state === "stopping") {
         engine.stop();
-      } else if (state === "completed" || state === "idle") {
+      } else if (state === "completed") {
+        hapticTap(settings.hapticEnabled, 100);
+        pendingRecordRef.current = {
+          startedAt: sessionStartWallClockRef.current,
+          duration: _duration,
+          soundscape: settings.soundscape,
+          pathway: settings.pathway,
+          actualDurationMs: performance.now() - sessionStartTimeRef.current,
+          completed: true,
+          moodBefore,
+        };
+        setMoodPhase("after");
+        setShowUI(true);
+        if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+      } else if (state === "idle") {
         setShowUI(true);
         if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
       }
     },
-    [settings.soundscape, settings.rhythmPreset, settings.binauralEnabled, settings.experienceMode, settings.pathway],
+    [settings.soundscape, settings.rhythmPreset, settings.binauralEnabled, settings.experienceMode, settings.pathway, settings.hapticEnabled],
   );
 
   const session = useSession(handleStateChange);
@@ -153,11 +188,12 @@ export default function Home() {
   const handleSoundscapeChange = useCallback(
     (s: SoundscapeId) => {
       updateSettings({ soundscape: s });
+      hapticTap(settings.hapticEnabled, 30);
       if (isActive && audioRef.current && settings.experienceMode !== "visuals-only") {
         audioRef.current.crossfadeTo(s);
       }
     },
-    [isActive, updateSettings, settings.experienceMode],
+    [isActive, updateSettings, settings.experienceMode, settings.hapticEnabled],
   );
 
   const handleVolumeChange = useCallback(
@@ -183,34 +219,81 @@ export default function Home() {
     [updateSettings],
   );
 
+  const handleStartWithMood = useCallback((startFn: () => void) => {
+    pendingStartRef.current = startFn;
+    setMoodPhase("before");
+  }, []);
+
+  const handleMoodBeforeSelect = useCallback((mood: MoodRating) => {
+    setMoodBefore(mood);
+    setMoodPhase(null);
+    pendingStartRef.current?.();
+    pendingStartRef.current = null;
+  }, []);
+
+  const handleMoodBeforeSkip = useCallback(() => {
+    setMoodBefore(undefined);
+    setMoodPhase(null);
+    pendingStartRef.current?.();
+    pendingStartRef.current = null;
+  }, []);
+
+  const handleMoodAfterSelect = useCallback((mood: MoodRating) => {
+    if (pendingRecordRef.current) {
+      pendingRecordRef.current.moodAfter = mood;
+      addSessionRecord(pendingRecordRef.current);
+      pendingRecordRef.current = null;
+    }
+    setMoodPhase(null);
+    setMoodBefore(undefined);
+  }, []);
+
+  const handleMoodAfterSkip = useCallback(() => {
+    if (pendingRecordRef.current) {
+      addSessionRecord(pendingRecordRef.current);
+      pendingRecordRef.current = null;
+    }
+    setMoodPhase(null);
+    setMoodBefore(undefined);
+  }, []);
+
   const handleStartReset = useCallback(() => {
     audioRef.current?.setVolume(settings.volume);
-    session.startReset();
-    startHideTimer();
-  }, [session, settings.volume, startHideTimer]);
+    handleStartWithMood(() => { session.startReset(); startHideTimer(); });
+  }, [session, settings.volume, startHideTimer, handleStartWithMood]);
 
   const handleStartTenMinuteReset = useCallback(() => {
     audioRef.current?.setVolume(settings.volume);
-    session.startTenMinuteReset();
-    startHideTimer();
-  }, [session, settings.volume, startHideTimer]);
+    handleStartWithMood(() => { session.startTenMinuteReset(); startHideTimer(); });
+  }, [session, settings.volume, startHideTimer, handleStartWithMood]);
 
   const handleStartOpen = useCallback(() => {
     audioRef.current?.setVolume(settings.volume);
-    session.startOpen();
-    startHideTimer();
-  }, [session, settings.volume, startHideTimer]);
+    handleStartWithMood(() => { session.startOpen(); startHideTimer(); });
+  }, [session, settings.volume, startHideTimer, handleStartWithMood]);
 
   const handleStop = useCallback(() => {
+    if (session.state !== "idle" && session.state !== "completed") {
+      addSessionRecord({
+        startedAt: sessionStartWallClockRef.current,
+        duration: session.sessionType,
+        soundscape: settings.soundscape,
+        pathway: settings.pathway,
+        actualDurationMs: performance.now() - sessionStartTimeRef.current,
+        completed: false,
+        moodBefore,
+      });
+    }
+    pendingRecordRef.current = null;
     session.stop();
     setShowUI(true);
+    setMoodBefore(undefined);
     if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-  }, [session]);
+  }, [session, settings.soundscape, settings.pathway, moodBefore]);
 
   const handleReplay = useCallback(() => {
-    session.replay();
-    startHideTimer();
-  }, [session, startHideTimer]);
+    handleStartWithMood(() => { session.replay(); startHideTimer(); });
+  }, [session, startHideTimer, handleStartWithMood]);
 
   const handleSettingsUpdate = useCallback(
     (update: Partial<typeof settings>) => {
@@ -239,6 +322,27 @@ export default function Home() {
     [updateSettings],
   );
 
+  const handleOpenHistory = useCallback(() => {
+    setSettingsOpen(false);
+    setHistoryOpen(true);
+  }, []);
+
+  const handleOpenStats = useCallback(() => {
+    setSettingsOpen(false);
+    setStatsOpen(true);
+  }, []);
+
+  const handleShare = useCallback(async () => {
+    const url = buildShareUrl(settings);
+    try {
+      await navigator.clipboard.writeText(url);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    } catch {
+      // clipboard may be unavailable
+    }
+  }, [settings]);
+
   const toggleFullscreen = useCallback(() => {
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen?.().catch(() => {});
@@ -247,8 +351,55 @@ export default function Home() {
     }
   }, []);
 
+  const volumeBeforeMuteRef = useRef(settings.volume);
+
+  const toggleMute = useCallback(() => {
+    if (settings.volume > 0) {
+      volumeBeforeMuteRef.current = settings.volume;
+      updateSettings({ volume: 0 });
+      audioRef.current?.setVolume(0);
+    } else {
+      const restored = volumeBeforeMuteRef.current || 0.7;
+      updateSettings({ volume: restored });
+      audioRef.current?.setVolume(restored);
+    }
+  }, [settings.volume, updateSettings]);
+
+  const toggleSession = useCallback(() => {
+    if (isActive) {
+      handleStop();
+    } else if (session.state === "completed") {
+      handleReplay();
+    } else {
+      handleStartReset();
+    }
+  }, [isActive, session.state, handleStop, handleReplay, handleStartReset]);
+
+  const toggleSettings = useCallback(() => {
+    setSettingsOpen((prev) => !prev);
+  }, []);
+
+  const { helpOpen, setHelpOpen } = useKeyboardShortcuts({
+    onToggleSession: toggleSession,
+    onToggleMute: toggleMute,
+    onToggleSettings: toggleSettings,
+    onToggleFullscreen: toggleFullscreen,
+    isActive,
+    settingsOpen,
+  });
+
   const showVisuals = settings.experienceMode !== "audio-only";
   const rhythmHz = getBreathHz(settings.rhythmPreset);
+
+  const effectiveHighContrast = settings.highContrast ||
+    (typeof window !== "undefined" && window.matchMedia?.("(prefers-contrast: more)")?.matches);
+
+  useEffect(() => {
+    document.documentElement.setAttribute(
+      "data-high-contrast",
+      effectiveHighContrast ? "true" : "false",
+    );
+  }, [effectiveHighContrast]);
 
   if (showOnboarding) {
     return <Onboarding onDismiss={handleOnboardingDismiss} />;
@@ -263,6 +414,16 @@ export default function Home() {
       onFocusCapture={revealUI}
       style={{ cursor: showUI ? "default" : "none" }}
     >
+      <a
+        href="#main-controls"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-1/2 focus:-translate-x-1/2 focus:z-[100] focus:px-4 focus:py-2 focus:rounded-full focus:bg-amber-200/20 focus:text-amber-100/90 focus:text-sm focus:tracking-wider focus:outline-none focus:ring-2 focus:ring-amber-200/60"
+      >
+        Skip to controls
+      </a>
+
+      <OfflineIndicator />
+      <AudioErrorBanner audioEngine={audioRef.current} />
+
       {showVisuals && (
         <VisualCanvas
           audioEngine={audioRef.current}
@@ -294,6 +455,8 @@ export default function Home() {
       <RhythmAnnouncer
         enabled={settings.announceRhythm && isActive}
         breathPhase={breathPhase}
+        cadence={settings.announcerCadence}
+        verbosity={settings.announcerVerbosity}
       />
 
       {/* Header */}
@@ -322,6 +485,7 @@ export default function Home() {
 
       {/* Controls */}
       <div
+        id="main-controls"
         className={`transition-opacity duration-1000 ${showUI ? "opacity-100" : "opacity-0 pointer-events-none"}`}
         onPointerEnter={() => { controlsHovered.current = true; }}
         onPointerLeave={() => { controlsHovered.current = false; }}
@@ -353,7 +517,38 @@ export default function Home() {
         onUpdate={handleSettingsUpdate}
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}
+        onOpenHistory={handleOpenHistory}
+        onOpenStats={handleOpenStats}
+        onShare={handleShare}
       />
+
+      {/* Session history */}
+      <SessionHistory isOpen={historyOpen} onClose={() => setHistoryOpen(false)} />
+
+      {/* Usage stats */}
+      <StatsPanel isOpen={statsOpen} onClose={() => setStatsOpen(false)} />
+
+      {/* Mood check-in */}
+      {moodPhase && (
+        <MoodCheckIn
+          phase={moodPhase}
+          onSelect={moodPhase === "before" ? handleMoodBeforeSelect : handleMoodAfterSelect}
+          onSkip={moodPhase === "before" ? handleMoodBeforeSkip : handleMoodAfterSkip}
+        />
+      )}
+
+      {/* Keyboard help overlay */}
+      <KeyboardHelpOverlay open={helpOpen} onClose={() => setHelpOpen(false)} />
+
+      {/* Link copied toast */}
+      {linkCopied && (
+        <div
+          role="status"
+          className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full bg-amber-900/80 border border-amber-200/20 text-amber-100/80 text-xs tracking-wider backdrop-blur-sm animate-fadeIn"
+        >
+          Link copied
+        </div>
+      )}
 
       {/* Diagnostics (dev only) */}
       <DiagnosticsOverlay

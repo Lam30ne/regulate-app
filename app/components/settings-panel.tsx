@@ -2,12 +2,17 @@ import { useEffect, useRef, useState } from "react";
 import type { UserSettings } from "../lib/settings";
 import { RHYTHM_PRESETS, type RhythmPresetId } from "../lib/regulation-clock";
 import { BRAND } from "../lib/constants";
+import { canVibrate } from "../lib/haptics";
+import type { AnnouncerCadence, AnnouncerVerbosity } from "../lib/settings";
 
 interface SettingsPanelProps {
   settings: UserSettings;
   onUpdate: (update: Partial<UserSettings>) => void;
   isOpen: boolean;
   onClose: () => void;
+  onOpenHistory?: () => void;
+  onOpenStats?: () => void;
+  onShare?: () => void;
 }
 
 function ToggleSwitch({ checked, onChange, label, description }: {
@@ -25,6 +30,7 @@ function ToggleSwitch({ checked, onChange, label, description }: {
       <button
         role="switch"
         aria-checked={checked}
+        aria-label={label}
         onClick={onChange}
         className={`relative w-10 h-6 rounded-full transition-colors duration-300 focus-visible:ring-2 focus-visible:ring-amber-200/60 focus-visible:outline-none ${
           checked ? "bg-amber-200/25" : "bg-white/10"
@@ -47,7 +53,7 @@ const pillClass = (active: boolean) =>
       : "text-amber-100/40 border border-transparent hover:text-amber-100/60 hover:bg-white/5"
   }`;
 
-export function SettingsPanel({ settings, onUpdate, isOpen, onClose }: SettingsPanelProps) {
+export function SettingsPanel({ settings, onUpdate, isOpen, onClose, onOpenHistory, onOpenStats, onShare }: SettingsPanelProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const [showSafety, setShowSafety] = useState(false);
 
@@ -239,6 +245,24 @@ export function SettingsPanel({ settings, onUpdate, isOpen, onClose }: SettingsP
           label="Keep controls visible"
         />
 
+        {/* High contrast */}
+        <ToggleSwitch
+          checked={settings.highContrast}
+          onChange={() => onUpdate({ highContrast: !settings.highContrast })}
+          label="High contrast"
+          description="Increase text and border visibility"
+        />
+
+        {/* Haptic feedback (mobile only) */}
+        {canVibrate() && (
+          <ToggleSwitch
+            checked={settings.hapticEnabled}
+            onChange={() => onUpdate({ hapticEnabled: !settings.hapticEnabled })}
+            label="Haptic feedback"
+            description="Subtle vibration on session start and end"
+          />
+        )}
+
         {/* Announce rhythm changes */}
         <ToggleSwitch
           checked={settings.announceRhythm}
@@ -246,6 +270,78 @@ export function SettingsPanel({ settings, onUpdate, isOpen, onClose }: SettingsP
           label="Announce rhythm changes"
           description="Screen reader announces rising/settling"
         />
+
+        {/* Announcer options (shown when announcer is enabled) */}
+        {settings.announceRhythm && (
+          <>
+            <fieldset>
+              <legend className="text-amber-100/50 text-xs tracking-wider uppercase mb-2">Announcement cadence</legend>
+              <div className="flex gap-2">
+                {([
+                  { id: "every-cycle" as AnnouncerCadence, label: "Every cycle" },
+                  { id: "every-other" as AnnouncerCadence, label: "Every other" },
+                  { id: "every-five" as AnnouncerCadence, label: "Every 5th" },
+                ]).map(({ id, label }) => (
+                  <button
+                    key={id}
+                    onClick={() => onUpdate({ announcerCadence: id })}
+                    aria-pressed={settings.announcerCadence === id}
+                    className={pillClass(settings.announcerCadence === id)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+
+            <fieldset>
+              <legend className="text-amber-100/50 text-xs tracking-wider uppercase mb-2">Announcement detail</legend>
+              <div className="flex gap-2">
+                {([
+                  { id: "minimal" as AnnouncerVerbosity, label: "Minimal" },
+                  { id: "descriptive" as AnnouncerVerbosity, label: "Descriptive" },
+                ]).map(({ id, label }) => (
+                  <button
+                    key={id}
+                    onClick={() => onUpdate({ announcerVerbosity: id })}
+                    aria-pressed={settings.announcerVerbosity === id}
+                    className={pillClass(settings.announcerVerbosity === id)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+          </>
+        )}
+
+        {/* Session history, stats & share */}
+        <div className="flex flex-wrap gap-2">
+          {onOpenHistory && (
+            <button
+              onClick={onOpenHistory}
+              className="flex-1 min-h-[44px] px-3 py-2 rounded-full text-amber-100/40 text-xs tracking-wider border border-transparent hover:text-amber-100/60 hover:bg-white/5 transition-all duration-300 focus-visible:ring-2 focus-visible:ring-amber-200/60 focus-visible:outline-none"
+            >
+              Session history
+            </button>
+          )}
+          {onOpenStats && (
+            <button
+              onClick={onOpenStats}
+              className="flex-1 min-h-[44px] px-3 py-2 rounded-full text-amber-100/40 text-xs tracking-wider border border-transparent hover:text-amber-100/60 hover:bg-white/5 transition-all duration-300 focus-visible:ring-2 focus-visible:ring-amber-200/60 focus-visible:outline-none"
+            >
+              Usage stats
+            </button>
+          )}
+          {onShare && (
+            <button
+              onClick={onShare}
+              className="flex-1 min-h-[44px] px-3 py-2 rounded-full text-amber-100/40 text-xs tracking-wider border border-transparent hover:text-amber-100/60 hover:bg-white/5 transition-all duration-300 focus-visible:ring-2 focus-visible:ring-amber-200/60 focus-visible:outline-none"
+            >
+              Share settings
+            </button>
+          )}
+        </div>
 
         {/* Safety info link */}
         <div className="pt-2 border-t border-amber-200/5">

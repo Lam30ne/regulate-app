@@ -53,6 +53,10 @@ describe("loadSettings", () => {
       audioReactivity: "reduced" as const,
       cycleShape: "balanced" as const,
       announceRhythm: true,
+      announcerCadence: "every-other" as const,
+      announcerVerbosity: "descriptive" as const,
+      hapticEnabled: true,
+      highContrast: true,
     };
     localStorage.setItem("regulate-settings", JSON.stringify(custom));
     expect(loadSettings()).toEqual(custom);
@@ -68,6 +72,10 @@ describe("loadSettings", () => {
     expect(result.audioReactivity).toBe(DEFAULT_SETTINGS.audioReactivity);
     expect(result.cycleShape).toBe(DEFAULT_SETTINGS.cycleShape);
     expect(result.announceRhythm).toBe(DEFAULT_SETTINGS.announceRhythm);
+    expect(result.announcerCadence).toBe(DEFAULT_SETTINGS.announcerCadence);
+    expect(result.announcerVerbosity).toBe(DEFAULT_SETTINGS.announcerVerbosity);
+    expect(result.hapticEnabled).toBe(DEFAULT_SETTINGS.hapticEnabled);
+    expect(result.highContrast).toBe(DEFAULT_SETTINGS.highContrast);
   });
 
   it("rejects invalid pathway values", () => {

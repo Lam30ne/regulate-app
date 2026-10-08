@@ -4,6 +4,7 @@ import type { SoundscapeId, Pathway, AudioReactivity } from "../lib/settings";
 import type { MotionPreference, ExperienceMode } from "../lib/settings";
 import type { CycleShape } from "../lib/regulation-clock";
 import { getBreathPhase, getShapedBreathPhase } from "../lib/regulation-clock";
+import { isMobile } from "../lib/device";
 import { getTimeOfDayShift } from "./time-palette";
 
 interface Particle {
@@ -40,11 +41,6 @@ const SOUNDSCAPE_PALETTES: Record<
 const DAMPING_BASE = 0.92;
 const FORCE_STRENGTH = 4.2;
 const MAX_DELTA = 0.1;
-
-function isMobile(): boolean {
-  if (typeof window === "undefined") return false;
-  return window.innerWidth < 768 || navigator.hardwareConcurrency <= 4;
-}
 
 function createParticle(
   width: number,
@@ -137,12 +133,17 @@ export function VisualCanvas({
   }
 
   const particleRefreshRef = useRef(false);
+  const restartLoopRef = useRef<(() => void) | null>(null);
   const prevModeRef = useRef(mode);
   if (mode !== prevModeRef.current) {
     prevModeRef.current = mode;
     modeRef.current = mode;
     particleRefreshRef.current = true;
   }
+
+  useEffect(() => {
+    restartLoopRef.current?.();
+  }, [isPlaying, motionPreference]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -176,11 +177,21 @@ export function VisualCanvas({
     let cachedBasinBrightness = -1;
 
     let paused = false;
+    let loopRunning = false;
+
+    const ensureLoopRunning = () => {
+      if (!loopRunning && !paused) {
+        loopRunning = true;
+        lastFrameTime = performance.now();
+        animFrameRef.current = requestAnimationFrame(animate);
+      }
+    };
 
     // Motion preference listener
     const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
     const onMotionChange = () => {
       particleRefreshRef.current = true;
+      ensureLoopRunning();
     };
     motionQuery.addEventListener("change", onMotionChange);
 
@@ -575,6 +586,11 @@ export function VisualCanvas({
         );
       }
 
+      if (motion === "static" && !curPlaying) {
+        loopRunning = false;
+        return;
+      }
+
       animFrameRef.current = requestAnimationFrame(animate);
     };
 
@@ -582,18 +598,21 @@ export function VisualCanvas({
     const onVisibility = () => {
       if (document.hidden) {
         paused = true;
+        loopRunning = false;
         cancelAnimationFrame(animFrameRef.current);
       } else {
         paused = false;
-        lastFrameTime = performance.now();
-        animFrameRef.current = requestAnimationFrame(animate);
+        ensureLoopRunning();
       }
     };
     document.addEventListener("visibilitychange", onVisibility);
 
+    restartLoopRef.current = ensureLoopRunning;
+    loopRunning = true;
     animFrameRef.current = requestAnimationFrame(animate);
 
     return () => {
+      restartLoopRef.current = null;
       window.removeEventListener("resize", resize);
       document.removeEventListener("visibilitychange", onVisibility);
       motionQuery.removeEventListener("change", onMotionChange);
