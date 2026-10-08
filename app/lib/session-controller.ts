@@ -18,9 +18,6 @@ export type SessionState =
 
 export type SessionDuration = "five-minute" | "ten-minute" | "open";
 
-/** @deprecated Use SessionDuration */
-export type SessionType = SessionDuration;
-
 export interface SessionCallbacks {
   onStateChange: (state: SessionState, duration: SessionDuration) => void;
   onComplete?: () => void;
@@ -42,11 +39,6 @@ export class SessionController {
   }
 
   getSessionDuration(): SessionDuration {
-    return this.duration;
-  }
-
-  /** @deprecated Use getSessionDuration() */
-  getSessionType(): SessionDuration {
     return this.duration;
   }
 

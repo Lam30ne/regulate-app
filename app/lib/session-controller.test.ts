@@ -44,7 +44,7 @@ describe("reset session", () => {
   it("transitions to starting on startReset", () => {
     controller.startReset();
     expect(controller.getState()).toBe("starting");
-    expect(controller.getSessionType()).toBe("five-minute");
+    expect(controller.getSessionDuration()).toBe("five-minute");
     expect(onStateChange).toHaveBeenCalledWith("starting", "five-minute");
   });
 
@@ -90,7 +90,7 @@ describe("open session", () => {
   it("transitions to starting on startOpen", () => {
     controller.startOpen();
     expect(controller.getState()).toBe("starting");
-    expect(controller.getSessionType()).toBe("open");
+    expect(controller.getSessionDuration()).toBe("open");
   });
 
   it("transitions to running after FADE_IN_MS", () => {
@@ -143,7 +143,7 @@ describe("replay", () => {
     expect(controller.getState()).toBe("completed");
     controller.replay();
     expect(controller.getState()).toBe("starting");
-    expect(controller.getSessionType()).toBe("five-minute");
+    expect(controller.getSessionDuration()).toBe("five-minute");
   });
 });
 
