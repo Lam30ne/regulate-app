@@ -53,9 +53,6 @@ export const SOUNDSCAPES: Record<SoundscapeId, SoundscapeConfig> = {
   },
 };
 
-/** @deprecated Use SOUNDSCAPES */
-export const MODES = SOUNDSCAPES;
-
 interface SoundscapeBus {
   gainNode: GainNode;
   oscillators: OscillatorNode[];
@@ -552,11 +549,6 @@ export class AudioEngine {
     this.smoothedLevel = this.smoothedLevel * 0.8 + normalized * 0.2;
     if (this.audioReactivity === "reduced") return this.smoothedLevel * 0.3;
     return this.smoothedLevel;
-  }
-
-  /** @deprecated Use getAudioLevel() */
-  getAverageFrequency(): number {
-    return this.getAudioLevel();
   }
 
   async stop(): Promise<void> {
