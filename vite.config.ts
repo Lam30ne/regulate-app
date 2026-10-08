@@ -31,7 +31,9 @@ function swCacheVersion(): Plugin {
 	};
 }
 
+const base = process.env.BASE_PATH ?? "/";
+
 export default defineConfig({
-	base: "/regulate-app/",
+	base,
 	plugins: [tailwindcss(), reactRouter(), tsconfigPaths(), swCacheVersion()],
 });

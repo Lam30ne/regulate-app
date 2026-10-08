@@ -2,5 +2,5 @@ import type { Config } from "@react-router/dev/config";
 
 export default {
 	ssr: false,
-	basename: "/regulate-app/",
+	basename: process.env.BASE_PATH ?? "/",
 } satisfies Config;

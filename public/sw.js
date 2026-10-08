@@ -1,5 +1,5 @@
 const CACHE_VERSION = "regulate-v1";
-const BASE_PATH = "/regulate-app/";
+const BASE_PATH = new URL("./", self.location).pathname;
 
 const SHELL_ASSETS = [
   BASE_PATH,

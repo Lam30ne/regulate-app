@@ -32,6 +32,8 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+        env:
+          BASE_PATH: /regulate-app/
       - run: npm run size
 
       - uses: actions/configure-pages@v5

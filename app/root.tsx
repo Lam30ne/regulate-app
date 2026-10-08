@@ -29,9 +29,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
 			<head>
 				<meta charSet="utf-8" />
 				<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-				<link rel="manifest" href="/regulate-app/manifest.json" />
-				<link rel="icon" type="image/png" sizes="192x192" href="/regulate-app/icons/icon-192.png" />
-				<link rel="apple-touch-icon" href="/regulate-app/icons/icon-192.png" />
+				<link rel="manifest" href={`${import.meta.env.BASE_URL}manifest.json`} />
+				<link rel="icon" type="image/png" sizes="192x192" href={`${import.meta.env.BASE_URL}icons/icon-192.png`} />
+				<link rel="apple-touch-icon" href={`${import.meta.env.BASE_URL}icons/icon-192.png`} />
 				<Meta />
 				<Links />
 			</head>
@@ -44,8 +44,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
 						__html: `
 							if ('serviceWorker' in navigator && location.hostname !== 'localhost') {
 								window.addEventListener('load', function() {
-									navigator.serviceWorker.register('/regulate-app/sw.js', {
-										scope: '/regulate-app/'
+									navigator.serviceWorker.register('${import.meta.env.BASE_URL}sw.js', {
+										scope: '${import.meta.env.BASE_URL}'
 									});
 								});
 							}
@@ -97,7 +97,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
 						: "Take a breath. These things happen. Let's start fresh."}
 				</p>
 				<a
-					href="/regulate-app/"
+					href={import.meta.env.BASE_URL}
 					className="inline-block px-6 py-3 rounded-full bg-amber-200/8 text-amber-100/70 text-sm font-light tracking-wider border border-amber-200/25 hover:bg-amber-200/12 transition-all duration-500 focus-visible:ring-2 focus-visible:ring-amber-200/40 focus-visible:outline-none"
 				>
 					Return home
