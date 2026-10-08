@@ -18,8 +18,6 @@ export type SessionState =
 
 export type SessionDuration = "five-minute" | "ten-minute" | "open";
 
-/** @deprecated Use SessionDuration */
-export type SessionType = SessionDuration;
 
 export interface SessionCallbacks {
   onStateChange: (state: SessionState, duration: SessionDuration) => void;
@@ -42,11 +40,6 @@ export class SessionController {
   }
 
   getSessionDuration(): SessionDuration {
-    return this.duration;
-  }
-
-  /** @deprecated Use getSessionDuration() */
-  getSessionType(): SessionDuration {
     return this.duration;
   }
 
@@ -96,6 +89,7 @@ export class SessionController {
     if (this.state === "idle" || this.state === "completed") return;
     this.setState("stopping");
     this.stopTicking();
+    this.setState("idle");
   }
 
   replay(): void {

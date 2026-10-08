@@ -44,7 +44,7 @@ describe("reset session", () => {
   it("transitions to starting on startReset", () => {
     controller.startReset();
     expect(controller.getState()).toBe("starting");
-    expect(controller.getSessionType()).toBe("five-minute");
+    expect(controller.getSessionDuration()).toBe("five-minute");
     expect(onStateChange).toHaveBeenCalledWith("starting", "five-minute");
   });
 
@@ -90,7 +90,7 @@ describe("open session", () => {
   it("transitions to starting on startOpen", () => {
     controller.startOpen();
     expect(controller.getState()).toBe("starting");
-    expect(controller.getSessionType()).toBe("open");
+    expect(controller.getSessionDuration()).toBe("open");
   });
 
   it("transitions to running after FADE_IN_MS", () => {
@@ -107,17 +107,20 @@ describe("open session", () => {
 });
 
 describe("stop", () => {
-  it("transitions to stopping from running", () => {
+  it("transitions through stopping to idle from running", () => {
     controller.startReset();
     vi.advanceTimersByTime(FADE_IN_MS + 250);
     controller.stop();
-    expect(controller.getState()).toBe("stopping");
+    expect(controller.getState()).toBe("idle");
+    expect(onStateChange).toHaveBeenCalledWith("stopping", "five-minute");
+    expect(onStateChange).toHaveBeenCalledWith("idle", "five-minute");
   });
 
-  it("transitions to stopping from starting", () => {
+  it("transitions through stopping to idle from starting", () => {
     controller.startReset();
     controller.stop();
-    expect(controller.getState()).toBe("stopping");
+    expect(controller.getState()).toBe("idle");
+    expect(onStateChange).toHaveBeenCalledWith("stopping", "five-minute");
   });
 
   it("does nothing from idle", () => {
@@ -143,7 +146,7 @@ describe("replay", () => {
     expect(controller.getState()).toBe("completed");
     controller.replay();
     expect(controller.getState()).toBe("starting");
-    expect(controller.getSessionType()).toBe("five-minute");
+    expect(controller.getSessionDuration()).toBe("five-minute");
   });
 });
 

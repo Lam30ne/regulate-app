@@ -36,8 +36,6 @@ const SOUNDSCAPE_PALETTES: Record<
   drift: { hueRange: [25, 55], saturation: 32, brightness: 52 },
 };
 
-/** @deprecated Use SOUNDSCAPE_PALETTES */
-export const MODE_PALETTES = SOUNDSCAPE_PALETTES;
 
 const DAMPING_BASE = 0.92;
 const FORCE_STRENGTH = 4.2;
